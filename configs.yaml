@@ -1,0 +1,11 @@
+#
+#
+data:
+  train: ''
+  valid: ''
+  task: 
+    TaskA: 
+      target_input: 'section_header'
+      #target_input: 'section_text'
+train:
+  save_path: "models/"
