@@ -18,6 +18,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from modeling_BioGPT_pointer import GPT_Chat2Note, BioGptForCausalLMAddPointer
 from tokenization_biogpt import BioGptTokenizer
+from configuration_biogpt import BioGptConfig
 
 from train_biogpt_sum import PROMPTS, TaskA_LABELS, clear_task_a_dialogue, make_task_a_datalist
 
@@ -88,8 +89,8 @@ def post_process_sum(prediction, finish = False):
     prediction = prediction.strip('</s>')
     return prediction, finish
 
-HEADER_RUNS = {1: 42, 2: 99, 3: 1}
-CONTEXT_LENGTHS = {1:200, 2:300, 3: 500}
+HEADER_RUNS = {'1': 42, '2': 99, '3': 1}
+CONTEXT_LENGTHS = {'1':200, '2':300, '3': 500}
 
 def main(inference_config_file='biogpt_inference.yaml', run=2, test_path='taskA_testset4participants_inputConversations.csv'):
     
@@ -101,6 +102,7 @@ def main(inference_config_file='biogpt_inference.yaml', run=2, test_path='taskA_
     configs = load_config(inference_config_file)
 
     init_model_path = configs['model']['gpt']['biogpt_base']
+    #init_model_path = "microsof"
 
     biogpt_tokenizer = BioGptTokenizer.from_pretrained(init_model_path)
     chat2note = GPT_Chat2Note(configs, init_model_path=init_model_path, tokenizer=biogpt_tokenizer, add_pointer=False, add_context_hidden=False)
@@ -172,5 +174,5 @@ if __name__== '__main__':
     import sys
     #config_path = 'configs/transformer_config.yaml'
     #main(config_path)
-    assert len(sys.argv) >= 3, "The path to the config file must be given as argument!"
-    main(sys.argv[1], 2, sys.argv[2])
+    assert len(sys.argv) >= 4, "The path to the config file must be given as argument!"
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
