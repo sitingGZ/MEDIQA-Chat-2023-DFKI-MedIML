@@ -10,8 +10,8 @@ data: # specify your data here
       source: 'dialogue'
       target: 'note'
     #target: 'section_text'
-  train: 'data/{}/{}-TrainingSet.csv'
-  valid: 'data/{}/{}-ValidationSet.csv'
+  train: 'TaskA/TaskA-TrainingSet.csv'
+  valid: 'TaskA/TaskA-ValidationSet.csv'
   chunking: 0
   chunking_valid: 0
 
@@ -59,7 +59,7 @@ train:                           # specify training details here
   logging_freq: 50                # log the training progress after this many updates, default: 100
   eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
   early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-  save_path: "/netscratch/iml_liang/nlp/new_gpt_{}_{}_{}_add_pointer_{}_update_last_layers_{}"
+  save_path: "models/predict_header/"
 
   #pre_checkpoint: "/netscratch/iml_liang/nlp/models_new/xlm2xlm_no_pointer/bert2bert-epoch=01-val_loss=5.20522.ckpt"
   overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
@@ -93,8 +93,8 @@ model:
   tied_softmax: False             # tie trg embeddings and softmax (for Transformer; can be used together with tied_embeddings), default: False
   tokenizer: 
     biogpt_large: "microsoft/BioGPT-Large-PubMedQA"
-    biogpt_base: '/netscratch/iml_liang/biogpt/'
+    biogpt_base: 'microsoft/biogpt'
   gpt:
     biogpt_large: "microsoft/BioGPT-Large-PubMedQA"
-    biogpt_base: '/netscratch/iml_liang/biogpt/'
+    biogpt_base: 'microsoft/biogpt'
     

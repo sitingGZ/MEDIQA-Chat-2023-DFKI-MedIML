@@ -22,8 +22,8 @@ bert_languages:
 
 
 checkpoints:
-    predict_header: '/netscratch/iml_liang/nlp/predict_header/header_300_length_seed_{}.ckpt'
-    summarization: '/netscratch/iml_liang/nlp/summarization/sum_{}_length_seed_42.ckpt'
+    predict_header: 'models/predict_header/header_300_length_seed_{}.ckpt'
+    summarization: 'models/summarization/sum_{}_length_seed_42.ckpt'
                       # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
                       # length penalty for beam search
 
@@ -59,7 +59,7 @@ train:                           # specify training details here
   logging_freq: 50                # log the training progress after this many updates, default: 100
   eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
   early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-  save_path: 'ckpts/{}/'          # format the task , e.g. predict_header or summarization from task A
+  save_path: 'models/{}/'          # format the task , e.g. predict_header or summarization from task A
   #pre_checkpoint: "/netscratch/iml_liang/nlp/models_new/xlm2xlm_no_pointer/bert2bert-epoch=01-val_loss=5.20522.ckpt"
   overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
   shuffle: True                   # shuffle the training data, default: True

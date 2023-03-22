@@ -88,10 +88,10 @@ def post_process_sum(prediction, finish = False):
     prediction = prediction.strip('</s>')
     return prediction, finish
 
-HEADER_RUNS = {1: 42, 1: 99, 2: 1}
-CONTEXT_LENGTHS = {1:100, 2:300, 3: 500}
+HEADER_RUNS = {1: 42, 2: 99, 3: 1}
+CONTEXT_LENGTHS = {1:200, 2:300, 3: 500}
 
-def main(inference_config_file='biogpt_inference.yaml', run=0, test_path='taskA_testset4participants_inputConversations.csv'):
+def main(inference_config_file='biogpt_inference.yaml', run=2, test_path='taskA_testset4participants_inputConversations.csv'):
     
     seed = 42
     #if task == 'predict_header':
@@ -154,7 +154,8 @@ def main(inference_config_file='biogpt_inference.yaml', run=0, test_path='taskA_
     prompt_ids = None
     for i in range(len(dialogues_taska_test)):
         dialogue = dialogues_taska_test[i]
-        prompt = 'Summarize the section of <{}> . Here is the <first> part of the summary: '.format(TaskA_LABELS[headers[i]].lower())
+        prompt = 'Summarize the section of <'
+        #{}> . Here is the <first> part of the summary: '.format(TaskA_LABELS[headers[i]].lower())
         context_input_ids_list, prompt_ids = inference_tokenize_for_task_a(dialogue, context_seq_length=300, tokenizer=biogpt_tokenizer, prompt=prompt, prompt_ids = None)
         prediction = predict(prompt_ids, context_input_ids_list, chat2note.model, biogpt_tokenizer, target_length=100)
         p, finish = post_process_sum(prediction)
