@@ -461,6 +461,7 @@ class BioGptModel(BioGptPreTrainedModel):
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+        #print('make causal mask attention mask, input shape, inputs_embeds ', attention_mask.shape, input_shape, inputs_embeds.shape )
         combined_attention_mask = None
         if input_shape[-1] > 1:
             combined_attention_mask = _make_causal_mask(
@@ -469,13 +470,16 @@ class BioGptModel(BioGptPreTrainedModel):
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+            #print('expand attention if attention is not none ', attention_mask.shape)
             expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(
                 inputs_embeds.device
             )
-            combined_attention_mask = (
+            if combined_attention_mask is not None:
+                #print('combined  attention mask ' , combined_attention_mask.shape )
+                combined_attention_mask = (
                 expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
             )
-
+            #print('expaneded_shape ', expanded_attn_mask.shape)
         return combined_attention_mask
 
     @add_start_docstrings_to_model_forward(BIOGPT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))

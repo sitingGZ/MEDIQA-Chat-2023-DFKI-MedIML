@@ -17,8 +17,10 @@ from helpers import find_best_checkpoint, load_config, set_seed, robust_decode, 
 from pytorch_lightning import Trainer, callbacks
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-from modeling_BioGPT_pointer import TrainModel
+from modeling_BioGPT_pointer import GPT_Chat2Note
 from tokenization_biogpt import BioGptTokenizer
+
+import gc
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -119,7 +121,7 @@ def split_note_sections(text):
 class MedicalChatDataset(torch.utils.data.Dataset):
     """Construct data set for dataloader"""
 
-    def __init__(self, source_list, target_list, prompt=''):
+    def __init__(self, source_list, target_list, header_list):
         
         """
         Source data sample: 
@@ -127,6 +129,7 @@ class MedicalChatDataset(torch.utils.data.Dataset):
         """
         self.source = source_list
         self.target = target_list
+        self.header = header_list
       
         
     def __getitem__(self, index:int)->Dict:
@@ -134,33 +137,41 @@ class MedicalChatDataset(torch.utils.data.Dataset):
         :param index : int
         """
         
-        result = {'source':  self.source[index], 'target':self.target[index]}
+        result = {'source':  self.source[index], 'target':self.target[index], 'header':self.header[index]}
         
         return result
     
     def __len__(self):
         return len(self.source)
 
-def make_task_a_datalist(task_a_df, target_input, chunking = 6, splitor='\n'):
-    source_list = [clear_task_a_dialogue(s, chunking=chunking, splitor=splitor) for s in task_a_df['dialogue'] ]
-    target_list = [PROMPTS['TaskA'][target_input].format(TaskA_LABELS[s]) for s in task_a_df['section_header']]
+def make_task_a_datalist(task_a_df, target_input, chunking = 0, splitor='\n'):
+
+    # Chunking is 0 for summarization task
+    source_list = [clear_task_a_dialogue(s, chunking=0, splitor=splitor) for s in task_a_df['dialogue'] ]
+    target_list = [PROMPTS['TaskA'][target_input].format(TaskA_LABELS[s].lower()) for s in task_a_df['section_header']]
+    header_list = [TaskA_LABELS[s].lower() for s in task_a_df['section_header']]
     if target_input == 'section_text':
-        target_list = [p + t for p, t in zip(target_list, task_a_df['section_text'])]
+        target_list = task_a_df['section_text']
     #prompt = 
     if chunking > 0:
         new_source_list = []
         new_target_list = []
-        for s_list, t in zip(source_list, target_list):
+        new_header_list = []
+        for s_list, t ,h in zip(source_list, target_list, header_list):
             if target_input == 'section_header':
                 for s_ in s_list:
                     new_source_list.append(s_)
                     new_target_list.append(t)
+                    new_header_list.append(h)
             else:
                 new_source_list.append('\t'.join(s_list))
                 new_target_list.append(t)
-        return new_source_list, new_target_list
+                new_header_list.append(h)
+
+
+        return new_source_list, new_target_list, new_header_list
     else: 
-        return source_list, target_list
+        return source_list, target_list, header_list
 
 def make_task_b_datalist(task_b_df, chunking=6, splitor='\n'):
     source_list = [clear_task_b_dialogue(s, chunking=chunking, splitor='\n') for s in task_a_df['dialogue'] ]
@@ -180,28 +191,34 @@ def main(config_file):
     #batch_size = configs['train']['batch_size']
 
     gpus = 1
-    task_name = 'TaskA'
-    task = configs['data']['task'][task_name]
-    source_input = task['source']
-    target_input = task['target']
+    
+    task_name = configs['data']['task']['name']
 
-    train_csv = configs['data']['train'].format(task_name, task_name)
-    valid_csv = configs['data']['valid'].format(task_name, task_name)
+    task = 'TaskA'
+  
+    source_input = configs['data']['task'][task]['source']
+    target_input = configs['data']['task'][task]['target']
+
+    train_csv = configs['data']['train'].format(task, task)
+    valid_csv = configs['data']['valid'].format(task, task)
+
+
+
     chunking = configs['data']['chunking']
     chunking_valid = configs['data']['chunking_valid']
 
     task_df_train = pd.read_csv(train_csv)
     task_df_valid = pd.read_csv(valid_csv)
 
-    source_list, target_list = make_task_a_datalist(task_df_train, target_input, chunking=chunking, splitor='\r\n')
-    train_dataset = MedicalChatDataset(source_list=source_list, target_list = target_list)
+    source_list, target_list, header_list = make_task_a_datalist(task_df_train, target_input, chunking=chunking, splitor='\r\n')
+    train_dataset = MedicalChatDataset(source_list=source_list, target_list = target_list, header_list=header_list)
     
-    source_list, target_list = make_task_a_datalist(task_df_valid, target_input, chunking = chunking_valid, splitor='\n')
-    valid_dataset = MedicalChatDataset(source_list=source_list, target_list = target_list)
+    source_list, target_list, header_list = make_task_a_datalist(task_df_valid, target_input, chunking = chunking_valid, splitor='\n')
+    valid_dataset = MedicalChatDataset(source_list=source_list, target_list = target_list, header_list = header_list)
 
     bert_languages = configs['bert_languages']
  
-    seeds = [42, 99]
+    seeds = [42, 99, 1]
     #pointer = 
     
     for seed in seeds:
@@ -211,6 +228,7 @@ def main(config_file):
         for bert_language, train_params in bert_languages.items():
             init_model_path = configs['model']['gpt'][bert_language]
             add_pointer = configs['model']['add_pointer']
+            add_context_hidden = configs['model']['add_context_hidden']
             batch_size = train_params['batch_size']
             workers = train_params['workers']
             
@@ -218,29 +236,54 @@ def main(config_file):
             #new_tokens = list(language_codes.values()) 
             #tokenizer.add_tokens(new_tokens)
             
-            biogpt_trainer = TrainModel(configs, add_pointer=add_pointer, init_model_path=init_model_path, tokenizer=tokenizer)
-            if "pre_checkpoints" in configs['train']:
-                        
-                    ckpt_paths = configs['train']['pre_checkpoints']
-                   
+            biogpt_trainer = GPT_Chat2Note(configs, add_pointer=add_pointer, add_context_hidden=add_context_hidden, init_model_path=init_model_path, tokenizer=tokenizer, task=task_name)
+            biogpt_trainer.freeze_parameters()
+            #biogpt_trainer.model.cpu()
+            biogpt_trainer.init_optimizer_grouped_parameters()
             
-            save_path = configs['train']['save_path'].format(bert_language, task_name+'_chunking_{}'.format(chunking), target_input, add_pointer)
+            if biogpt_trainer.add_pointer:
+                biogpt_trainer.update_pointer_parameters()
+            #else:
+            biogpt_trainer.update_layers_parameters(configs['train']['update_last_layers'])
+
+                #biogpt_trainer.update_output_projection_parameters()
+
+            if "pre_checkpoints" in configs['train']:
+                    ckpt_paths = configs['train']['pre_checkpoints']
+
+            target_length = configs['model'].get('target_seq_length', -1)
+            context_length = configs['model'].get('context_seq_length', -1)
+            save_path = configs['train']['save_path'].format(add_context_hidden, bert_language, task_name+'_chunking_{}_target_length_{}_context_length_{}'.format(chunking, target_length, context_length), target_input, add_pointer, configs['train']['update_last_layers'])
                     #save_path = model_path.format(mlm_pretrained, mlm_training, name + '_update_encoder_{}_we_{}'.format(update_encoder, update_we))
             if not os.path.exists(save_path):
-                            os.mkdir(save_path)
+                os.mkdir(save_path)
           
             train_batch = batch_gen(train_dataset, batch_size = 1, num_workers = 1)
             valid_batch = batch_gen(valid_dataset, batch_size = 1, num_workers = 1)
 
+            # debug mode
+            #for i in range(len(train_dataset)):
+                #current_batch = {k:[v] for k,v in train_dataset[i].items()}
+                #print(' current batch ', i)
+                #train_batch, target_input_list = biogpt_trainer._tokenize(current_batch)
+        
+                #outputs = biogpt_trainer(train_batch, target_input_list)
+                #outputs = 
             cur_model_dir = os.path.join(save_path, 'seed_{}_chunking_valid_{}'.format(seed, chunking_valid))
-            #cur_model_dir = model_dir.format(seed)
+            
             checkpoint_callback = callbacks.ModelCheckpoint(monitor='val_loss', dirpath=cur_model_dir, mode = 'min',
                                                     filename='seq2seq-{epoch:02d}-{val_loss:.5f}', save_top_k=2, save_weights_only=True)
-            trainer = Trainer(gpus=gpus, gradient_clip_val = 1.0, stochastic_weight_avg=True, max_epochs=3,callbacks=checkpoint_callback, precision=16)      
+            gpu_trainer = Trainer(gpus=gpus, gradient_clip_val = 1.0, stochastic_weight_avg=True, max_epochs=10,callbacks=checkpoint_callback, precision=16)      
+            
+            gpu_trainer.fit(biogpt_trainer, train_batch,valid_batch)
+            #cpu_trainer = Trainer(accelerator='cpu', devices=2, gradient_clip_val = 1.0,max_epochs = 3, callbacks=checkpoint_callback)
                     #current_bert2bert = deepcopy(bert2bert)
-            trainer.fit(biogpt_trainer, train_batch, valid_batch)
-                                #print('Best model path of task {}'.format(task + round), checkpoint_callback.best_model_path)
+            #cpu_trainer.fit(biogpt_trainer, train_batch, valid_batch)
+
+            del gpu_trainer, biogpt_trainer
+                    #print('Best model path of task {}'.format(task + round), checkpoint_callback.best_model_path)
                     #del current_bert2bert, trainer
+            gc.collect()
             torch.cuda.empty_cache()
 
                     # reset tokenizer for anther dataset
