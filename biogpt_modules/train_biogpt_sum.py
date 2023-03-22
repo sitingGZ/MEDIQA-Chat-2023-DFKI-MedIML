@@ -218,7 +218,7 @@ def main(config_file):
 
     bert_languages = configs['bert_languages']
  
-    seeds = [42, 99, 1]
+    seeds = [42]
     #pointer = 
     
     for seed in seeds:
@@ -245,8 +245,7 @@ def main(config_file):
                 biogpt_trainer.update_pointer_parameters()
             #else:
             biogpt_trainer.update_layers_parameters(configs['train']['update_last_layers'])
-
-                #biogpt_trainer.update_output_projection_parameters()
+            biogpt_trainer.update_output_projection_parameters()
 
             if "pre_checkpoints" in configs['train']:
                     ckpt_paths = configs['train']['pre_checkpoints']
@@ -272,11 +271,11 @@ def main(config_file):
             cur_model_dir = os.path.join(save_path, 'seed_{}_chunking_valid_{}'.format(seed, chunking_valid))
             
             checkpoint_callback = callbacks.ModelCheckpoint(monitor='val_loss', dirpath=cur_model_dir, mode = 'min',
-                                                    filename='seq2seq-{epoch:02d}-{val_loss:.5f}', save_top_k=2, save_weights_only=True)
+                                                    filename='seq2seq-cpu-{epoch:02d}-{val_loss:.5f}', save_top_k=2, save_weights_only=True)
             gpu_trainer = Trainer(gpus=gpus, gradient_clip_val = 1.0, stochastic_weight_avg=True, max_epochs=10,callbacks=checkpoint_callback, precision=16)      
             
             gpu_trainer.fit(biogpt_trainer, train_batch,valid_batch)
-            #cpu_trainer = Trainer(accelerator='cpu', devices=2, gradient_clip_val = 1.0,max_epochs = 3, callbacks=checkpoint_callback)
+            #cpu_trainer = Trainer(accelerator='cpu', devices=4, gradient_clip_val = 1.0,max_epochs = 3, callbacks=checkpoint_callback)
                     #current_bert2bert = deepcopy(bert2bert)
             #cpu_trainer.fit(biogpt_trainer, train_batch, valid_batch)
 

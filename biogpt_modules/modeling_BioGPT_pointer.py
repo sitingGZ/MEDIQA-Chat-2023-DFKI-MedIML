@@ -34,8 +34,10 @@ class BioGptForCausalLMAddPointer(BioGptPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
         
-        self.add_pointer = add_pointer
-        self.add_context_hidden = add_context_hidden
+        #self.add_pointer = add_pointer
+        #self.add_context_hidden = add_context_hidden
+        self.add_pointer = False
+        self.add_context_hidden = False
 
         if self.add_pointer:
             self._init_pointer()
@@ -268,7 +270,8 @@ class BioGptForCausalLMAddPointer(BioGptPreTrainedModel):
             context_input_hiddens.append(current_hidden.unsqueeze(-1))
         else:
             context_input_hiddens.append(outputs[0][:,-target_ids_length:,:].unsqueeze(-1))
-            
+        
+   
                     
         for i in range(1, len(context_input_ids)):
             #print('idx of context input ids ', i)
@@ -313,6 +316,7 @@ class BioGptForCausalLMAddPointer(BioGptPreTrainedModel):
             else:
                 context_input_hiddens.append(outputs[0][:,-target_ids_length:,:].unsqueeze(-1))
 
+          
         if self.add_pointer:
             #prediction_scores = []
             start_hidden = context_input_hiddens[0]
@@ -373,9 +377,9 @@ class BioGptForCausalLMAddPointer(BioGptPreTrainedModel):
             loss=lm_loss,
             logits=prediction_scores,
             past_key_values=past_key_values,
-            hidden_states=outputs.hidden_states,
+            hidden_states=context_input_hiddens,
             attentions=attentions,
-            cross_attentions=outputs.cross_attentions,
+            cross_attentions=None,
         )
     
     def prepare_inputs_for_generation(self, input_ids, attention_mask, past_key_values=None, attentions=None, **kwargs):
@@ -681,7 +685,13 @@ class GPT_Chat2Note(pl.LightningModule):
     def forward(self, train_batch, target_input_list=None, is_training = True):
         #if self.model.add_pointer:
         #self.model.cpu()
+        
         outputs = self.forward_one_batch(**train_batch)
+        loss = outputs.loss
+        
+        #del train_batch
+
+      
         if target_input_list is not None and len(target_input_list) > 1:
             #print('length of target input list', len(target_input_list))
             for i in range(1,len(target_input_list)):
@@ -690,9 +700,11 @@ class GPT_Chat2Note(pl.LightningModule):
                 #print('i, context input ids ', i, len(context_input_ids))
                 train_batch = {'context_input_ids': context_input_ids, 'input_ids': target_input_list[i][0],  'attention_mask': target_input_list[i][1], 'labels': target_input_list[i][0]}
                 further_outputs = self.forward_one_batch(**train_batch)
-                outputs.loss += further_outputs.loss
+                loss += further_outputs.loss
 
-        return outputs
+                #del train_batch
+
+        return loss
 
 
     def training_step(self, batch, batch_idx):
@@ -704,21 +716,21 @@ class GPT_Chat2Note(pl.LightningModule):
         #print(len(batch))
         
         train_batch, target_input_list = self._tokenize(batch)
-        outputs = self(train_batch, target_input_list)
+        loss = self(train_batch, target_input_list)
         #else:
         #    self.model.base_model.embed_tokens.cpu
         #    self.model.base_model.embed_positions.cpu()
 
-        return outputs.loss
+        return loss
 
     def validation_step(self, batch, batch_idx):
 
         
         train_batch, target_input_list = self._tokenize(batch)
         
-        outputs = self(train_batch, target_input_list)
+        loss = self(train_batch, target_input_list)
 
-        self.log('val_loss', outputs.loss)
+        self.log('val_loss', loss)
         
         
     def test_step(self, batch, batch_idx):
@@ -753,7 +765,7 @@ class GPT_Chat2Note(pl.LightningModule):
                 {"params": params_for_no_decay,"weight_decay": 0.0,}])
         
     def update_pointer_parameters(self):
-        self.model.pointer.requires_grad = True
+        #self.model.pointer.requires_grad = True
         params = []
         for p in self.model.pointer.parameters():
             p.requires_grad = True
@@ -764,7 +776,7 @@ class GPT_Chat2Note(pl.LightningModule):
 
 
     def update_output_projection_parameters(self):
-        self.model.output_projection.requires_grad = True
+        #self.model.output_projection.requires_grad = True
         params = []
         for  p in self.model.output_projection.parameters():
             p.requires_grad = True
