@@ -17,8 +17,11 @@ from helpers import find_best_checkpoint, load_config, set_seed, robust_decode, 
 from pytorch_lightning import Trainer, callbacks
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-from modeling_BioGPT_pointer import GPT_Chat2Note
+from modeling_BioGPT_pointer import GPT_Chat2Note, BioGptForCausalLMAddPointer
 from tokenization_biogpt import BioGptTokenizer
+from configuration_biogpt import BioGptConfig
+
+import re
 
 import gc
 
@@ -236,7 +239,10 @@ def main(config_file):
             #new_tokens = list(language_codes.values()) 
             #tokenizer.add_tokens(new_tokens)
             
-            biogpt_trainer = GPT_Chat2Note(configs, add_pointer=add_pointer, add_context_hidden=add_context_hidden, init_model_path=init_model_path, tokenizer=tokenizer, task=task_name)
+            biogpt_config = BioGptConfig.from_pretrained(init_model_path)
+            biogpt_model = BioGptForCausalLMAddPointer(biogpt_config)
+
+            biogpt_trainer = GPT_Chat2Note(configs, biogpt_model=biogpt_model, tokenizer=tokenizer, add_pointer=False, add_context_hidden=False)
             biogpt_trainer.freeze_parameters()
             #biogpt_trainer.model.cpu()
             biogpt_trainer.init_optimizer_grouped_parameters()
