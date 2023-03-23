@@ -136,11 +136,11 @@ def main(inference_config_file='biogpt_inference.yaml', run=2, test_path='taskA_
         header = post_process_header(prediction, TaskA_LABELS_reverted)
         headers.append(header)
     
-    results = [{"TestID" : i, "SystemOutput1": headers[i]} for i in range(len(dialogues_taska_test))]
+    #results = [{"TestID" : i, "SystemOutput1": headers[i]} for i in range(len(dialogues_taska_test))]
     
-    save_result = "taskA_header_DFKI-MedIML_run{}.csv" 
-    df = pd.DataFrame(results)
-    df.to_csv(save_result.format(run))
+    #save_result = "taskA_header_DFKI-MedIML_run{}.csv" 
+    #df = pd.DataFrame(results)
+    #df.to_csv(save_result.format(run))
 
     del model_state
     # Summarize section
