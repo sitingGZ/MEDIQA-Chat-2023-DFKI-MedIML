@@ -22,8 +22,8 @@ bert_languages:
 
 
 checkpoints:
-    predict_header: 'models/predict_header/header_300_length_seed_{}.ckpt'
-    summarization: 'models/summarization/sum_{}_length_seed_42.ckpt'
+    predict_header: 'ckpts/predict_header/header_300_length_seed_{}.ckpt'
+    summarization: 'ckpts/summarization/sum_{}_length_seed_42.ckpt'
                       # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
                       # length penalty for beam search
 
