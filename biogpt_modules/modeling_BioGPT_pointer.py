@@ -419,7 +419,7 @@ class GPT_Chat2Note(pl.LightningModule):
     """
     Pytorch lightning train and inference module of integrating BioGpt(AddPointer)
     """
-    def __init__(self, config_dict, add_pointer, add_context_hidden, init_model_path:str, tokenizer:AutoTokenizer,  loss_func=None, pointer_ratio = 0.,vocab_weight= None, task='summarization'):
+    def __init__(self, config_dict, add_pointer, add_context_hidden, biogpt_model: BioGptForCausalLM, tokenizer:AutoTokenizer,  loss_func=None, pointer_ratio = 0.,vocab_weight= None, task='summarization'):
         """
         Initialize model and configurations defined in the config file.
         :param config_file:
@@ -437,7 +437,8 @@ class GPT_Chat2Note(pl.LightningModule):
         if self.tokenizer.pad_token is None:
             self.tokenizer.add_special_tokens({'pad_token':'<pad>'})
         
-        self.model = BioGptForCausalLMAddPointer.from_pretrained(init_model_path)
+        self.model = biogpt_model
+        #BioGptForCausalLMAddPointer.from_pretrained(init_model_path)
 
         if self.add_pointer:
             self.model._init_pointer()
