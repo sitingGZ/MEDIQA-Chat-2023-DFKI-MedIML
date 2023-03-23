@@ -105,7 +105,11 @@ def main(inference_config_file='biogpt_inference.yaml', run=2, test_path='taskA_
     #init_model_path = "microsof"
 
     biogpt_tokenizer = BioGptTokenizer.from_pretrained(init_model_path)
-    chat2note = GPT_Chat2Note(configs, init_model_path=init_model_path, tokenizer=biogpt_tokenizer, add_pointer=False, add_context_hidden=False)
+    biogpt_config = BioGptConfig.from_pretrained(init_model_path)
+    biogpt_model = BioGptForCausalLMAddPointer(biogpt_config)
+
+    chat2note = GPT_Chat2Note(configs, biogpt_model=biogpt_model, tokenizer=biogpt_tokenizer, add_pointer=False, add_context_hidden=False)
+    #chat2note = GPT_Chat2Note(configs, init_model_path=init_model_path, tokenizer=biogpt_tokenizer, add_pointer=False, add_context_hidden=False)
 
     #"/netscratch/iml_liang/nlp/new_gpt_biogpt_base_predict_header_chunking_0_target_length_50_context_length_300_section_header_add_pointer_False_update_last_layers_-2/seed_42_chunking_valid_0/"
     #test_path = 'TaskA/taskA_testset4participants_inputConversations.csv'
